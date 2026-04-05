@@ -9,6 +9,7 @@ import Today from "@/pages/Today";
 import LogDay from "@/pages/LogDay";
 import Chat from "@/pages/Chat";
 import Derm from "@/pages/Derm";
+import Progress from "@/pages/Progress";
 import NotFound from "@/pages/not-found";
 
 class ErrorBoundary extends Component<{ children: React.ReactNode }, { error: string | null }> {
@@ -47,6 +48,7 @@ export default function App() {
                 <Route path="/log/:date" component={LogDay} />
                 <Route path="/chat" component={Chat} />
                 <Route path="/derm" component={Derm} />
+              <Route path="/progress" component={Progress} />
                 <Route component={NotFound} />
               </Switch>
             </Layout>

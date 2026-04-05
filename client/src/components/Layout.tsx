@@ -1,11 +1,12 @@
 import { Link, useLocation } from "wouter";
-import { LayoutDashboard, BookOpen, MessageCircle, Stethoscope, Moon, Sun } from "lucide-react";
+import { LayoutDashboard, BookOpen, MessageCircle, Stethoscope, Moon, Sun, TrendingUp } from "lucide-react";
 import { useState, useEffect } from "react";
 import { cn } from "@/lib/utils";
 
 const NAV = [
   { href: "/", label: "Today", icon: LayoutDashboard },
   { href: "/log", label: "Log", icon: BookOpen },
+  { href: "/progress", label: "Progress", icon: TrendingUp },
   { href: "/chat", label: "AI Coach", icon: MessageCircle },
   { href: "/derm", label: "Derm", icon: Stethoscope },
 ];
@@ -58,7 +59,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
 
       {/* Bottom nav */}
       <nav className="fixed bottom-0 left-0 right-0 z-40 bg-background/95 backdrop-blur border-t border-border">
-        <div className="max-w-2xl mx-auto grid grid-cols-4 h-16">
+        <div className="max-w-2xl mx-auto grid grid-cols-5 h-16">
           {NAV.map(({ href, label, icon: Icon }) => {
             const active = location === href || (href !== "/" && location.startsWith(href));
             return (

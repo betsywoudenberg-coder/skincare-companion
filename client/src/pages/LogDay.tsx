@@ -267,13 +267,17 @@ export default function LogDay() {
           <Switch checked={redLightUsed} onCheckedChange={setRedLightUsed} data-testid="switch-red-light" />
         </div>
         {redLightUsed && (
-          <div>
-            <div className="flex items-center justify-between mb-1.5">
-              <p className="text-xs text-muted-foreground font-medium">Duration</p>
-              <span className="text-sm font-medium">{redLightDuration} min</span>
-            </div>
-            <Slider value={[redLightDuration]} onValueChange={([v]) => setRedLightDuration(v)} min={5} max={30} step={5} />
-            <div className="flex justify-between text-xs text-muted-foreground mt-1"><span>5 min</span><span>30 min</span></div>
+          <div className="flex items-center gap-3">
+            <p className="text-xs text-muted-foreground font-medium flex-1">Duration (minutes)</p>
+            <input
+              type="number"
+              min={1}
+              max={60}
+              value={redLightDuration}
+              onChange={e => setRedLightDuration(Number(e.target.value) || 10)}
+              className="w-16 text-center text-sm font-medium rounded-lg border border-input bg-background px-2 py-1.5 focus:outline-none focus:ring-1 focus:ring-ring"
+              data-testid="input-red-light-duration"
+            />
           </div>
         )}
       </CardContent></Card>
