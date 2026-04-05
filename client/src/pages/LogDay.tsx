@@ -72,6 +72,8 @@ export default function LogDay() {
   const [tolerance, setTolerance] = useState(5);
   const [skinFeel, setSkinFeel] = useState(3);
   const [amRoutineDone, setAmRoutineDone] = useState(false);
+  const [redLightUsed, setRedLightUsed] = useState(false);
+  const [redLightDuration, setRedLightDuration] = useState(10);
   const [procedureTags, setProcedureTags] = useState<string[]>([]);
   const [notes, setNotes] = useState("");
 
@@ -89,6 +91,8 @@ export default function LogDay() {
     setMalarBumps(existingLog.malarBumps ?? 0);
     setTolerance(existingLog.tolerance); setSkinFeel(existingLog.skinFeel);
     setAmRoutineDone(existingLog.amRoutineDone);
+    setRedLightUsed(existingLog.redLightUsed ?? false);
+    setRedLightDuration(existingLog.redLightDuration || 10);
     try { setProcedureTags(JSON.parse(existingLog.procedureTags || "[]")); } catch {}
     setNotes(existingLog.notes || "");
   }, [existingLog]);
@@ -104,6 +108,7 @@ export default function LogDay() {
         rosaceaSeverity: rosaceaFlare ? rosaceaSeverity : 0,
         rosaceaZones: JSON.stringify(rosaceaFlare ? rosaceaZones : []),
         malarBumps, tolerance, skinFeel, amRoutineDone,
+        redLightUsed, redLightDuration: redLightUsed ? redLightDuration : 0,
         procedureTags: JSON.stringify(procedureTags), notes,
       });
       return r.json();
@@ -250,6 +255,27 @@ export default function LogDay() {
             ))}
           </div>
         </div>
+      </CardContent></Card>
+
+      <SectionHeader>Red Light Mask</SectionHeader>
+      <Card><CardContent className="pt-4 pb-4 space-y-3">
+        <div className="flex items-center justify-between">
+          <div>
+            <p className="font-medium text-sm">Used Today</p>
+            <p className="text-xs text-muted-foreground">Red light / near-infrared mask session</p>
+          </div>
+          <Switch checked={redLightUsed} onCheckedChange={setRedLightUsed} data-testid="switch-red-light" />
+        </div>
+        {redLightUsed && (
+          <div>
+            <div className="flex items-center justify-between mb-1.5">
+              <p className="text-xs text-muted-foreground font-medium">Duration</p>
+              <span className="text-sm font-medium">{redLightDuration} min</span>
+            </div>
+            <Slider value={[redLightDuration]} onValueChange={([v]) => setRedLightDuration(v)} min={5} max={30} step={5} />
+            <div className="flex justify-between text-xs text-muted-foreground mt-1"><span>5 min</span><span>30 min</span></div>
+          </div>
+        )}
       </CardContent></Card>
 
       <SectionHeader>Procedures &amp; Events</SectionHeader>

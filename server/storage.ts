@@ -32,6 +32,8 @@ sqlite.exec(`
     tolerance INTEGER NOT NULL DEFAULT 5,
     skin_feel INTEGER NOT NULL DEFAULT 3,
     am_routine_done INTEGER NOT NULL DEFAULT 0,
+    red_light_used INTEGER NOT NULL DEFAULT 0,
+    red_light_duration INTEGER NOT NULL DEFAULT 0,
     procedure_tags TEXT NOT NULL DEFAULT '[]',
     notes TEXT DEFAULT ''
   );
@@ -54,6 +56,13 @@ sqlite.exec(`
     status TEXT NOT NULL DEFAULT 'upcoming'
   );
 `);
+
+// Idempotent migrations for existing databases
+const addCol = (table: string, col: string, def: string) => {
+  try { sqlite.exec(`ALTER TABLE ${table} ADD COLUMN ${col} ${def}`); } catch {}
+};
+addCol("daily_logs", "red_light_used", "INTEGER NOT NULL DEFAULT 0");
+addCol("daily_logs", "red_light_duration", "INTEGER NOT NULL DEFAULT 0");
 
 export interface IStorage {
   // Logs

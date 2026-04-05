@@ -89,6 +89,9 @@ const BETSY_SYSTEM_PROMPT = `You are Betsy's personal skincare AI coach. You kno
 // ── Routes ────────────────────────────────────────────────────────────────
 export function registerRoutes(httpServer: Server, app: Express) {
 
+  // Wake-up ping — lightweight endpoint to warm the server
+  app.get("/api/ping", (_req, res) => res.json({ ok: true, ts: Date.now() }));
+
   // Daily logs
   app.get("/api/logs", (_req, res) => res.json(storage.getAllLogs()));
   app.get("/api/logs/recent/:n", (req, res) => res.json(storage.getRecentLogs(Number(req.params.n) || 7)));

@@ -7,7 +7,8 @@ import { Progress } from "@/components/ui/progress";
 import type { DailyLog, DermAppointment } from "@shared/schema";
 import { toISODate, formatDate, daysBetween, SYMPTOM_COLORS, LEVEL_LABELS, skinFeelEmoji, skinFeelLabel } from "@/lib/utils";
 import { cn } from "@/lib/utils";
-import { Plus, CheckCircle2, CalendarDays, MessageCircle, AlertTriangle, Stethoscope } from "lucide-react";
+import { Plus, CheckCircle2, CalendarDays, MessageCircle, AlertTriangle, Stethoscope, Zap } from "lucide-react";
+import { useState } from "react";
 
 // Tretinoin start date
 const TRET_START = "2026-02-27";
@@ -29,6 +30,20 @@ function SymptomPip({ label, value, color }: { label: string; value: number; col
 
 export default function Today() {
   const today = toISODate(new Date());
+  const [wakeStatus, setWakeStatus] = useState<"idle" | "waking" | "ready" | "error">("idle");
+
+  const wakeServer = async () => {
+    setWakeStatus("waking");
+    try {
+      const res = await fetch("https://skincare-companion.onrender.com/api/ping");
+      if (res.ok) setWakeStatus("ready");
+      else setWakeStatus("error");
+    } catch {
+      setWakeStatus("error");
+    }
+    // Reset to idle after 10 seconds
+    setTimeout(() => setWakeStatus("idle"), 10000);
+  };
   const { data: todayLog } = useQuery<DailyLog | null>({
     queryKey: ["/api/logs", today],
     queryFn: async () => {
@@ -71,6 +86,26 @@ export default function Today() {
           </Button>
         </Link>
       </div>
+
+      {/* Wake-up button */}
+      <button
+        onClick={wakeServer}
+        disabled={wakeStatus === "waking" || wakeStatus === "ready"}
+        className={cn(
+          "w-full flex items-center justify-center gap-2 py-2.5 rounded-lg border text-sm font-medium transition-all",
+          wakeStatus === "ready" ? "bg-green-50 dark:bg-green-900/20 border-green-300 text-green-700 dark:text-green-400" :
+          wakeStatus === "waking" ? "bg-muted border-border text-muted-foreground cursor-wait" :
+          wakeStatus === "error" ? "bg-red-50 dark:bg-red-900/20 border-red-300 text-red-600" :
+          "bg-card border-border text-muted-foreground hover:border-primary/40 hover:text-primary"
+        )}
+        data-testid="button-wake"
+      >
+        <Zap size={14} className={wakeStatus === "waking" ? "animate-pulse" : ""} />
+        {wakeStatus === "idle" && "Wake up server before logging"}
+        {wakeStatus === "waking" && "Waking server…"}
+        {wakeStatus === "ready" && "Server ready — go ahead and log!"}
+        {wakeStatus === "error" && "Could not reach server — try again"}
+      </button>
 
       {/* Alert banner */}
       {hasAlert && (

@@ -37,6 +37,10 @@ export const dailyLogs = sqliteTable("daily_logs", {
   // AM routine completed
   amRoutineDone: integer("am_routine_done", { mode: "boolean" }).notNull().default(false),
 
+  // Red light mask
+  redLightUsed: integer("red_light_used", { mode: "boolean" }).notNull().default(false),
+  redLightDuration: integer("red_light_duration").notNull().default(0), // minutes
+
   // Procedures / events
   procedureTags: text("procedure_tags").notNull().default("[]"), // JSON array
 
