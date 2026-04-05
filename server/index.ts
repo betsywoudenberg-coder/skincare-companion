@@ -1,10 +1,23 @@
 import express, { type Request, Response, NextFunction } from "express";
+import cors from "cors";
 import { registerRoutes } from "./routes";
 import { serveStatic } from "./static";
 import { createServer } from "http";
 
 const app = express();
 const httpServer = createServer(app);
+
+// Allow cross-origin requests from the Perplexity-hosted frontend
+app.use(cors({
+  origin: [
+    "https://www.perplexity.ai",
+    "https://sites.pplx.app",
+    /\.pplx\.app$/,
+    /\.perplexity\.ai$/,
+    "http://localhost:5000",
+  ],
+  credentials: true,
+}));
 
 declare module "http" {
   interface IncomingMessage {
