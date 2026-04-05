@@ -1,6 +1,6 @@
 import { QueryClient } from "@tanstack/react-query";
 
-export const API_BASE = "__PORT_5000__";
+export const API_BASE = "https://skincare-companion.onrender.com";
 
 async function throwIfResNotOk(res: Response) {
   if (!res.ok) {
