@@ -77,7 +77,7 @@ export default function Today() {
       {/* Greeting */}
       <div className="flex items-start justify-between">
         <div>
-          <h1 className="font-display text-xl text-foreground">Good {new Date().getHours() < 12 ? "morning" : new Date().getHours() < 17 ? "afternoon" : "evening"}, Betsy</h1>
+          <h1 className="font-display text-xl text-foreground">Good {new Date().getHours() < 12 ? "morning" : new Date().getHours() < 17 ? "afternoon" : "evening"}</h1>
           <p className="text-muted-foreground text-sm mt-0.5">{new Date().toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric" })}</p>
         </div>
         <Link href={`/log/${today}`}>

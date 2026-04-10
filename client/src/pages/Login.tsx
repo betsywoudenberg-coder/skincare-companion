@@ -2,7 +2,7 @@ import { useState } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 
-const CORRECT_PIN = "101010";
+const CORRECT_PIN = import.meta.env.VITE_APP_PIN || "000000";
 
 function Logo() {
   return (
