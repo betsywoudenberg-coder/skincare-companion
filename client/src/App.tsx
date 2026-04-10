@@ -10,6 +10,7 @@ import LogDay from "@/pages/LogDay";
 import Chat from "@/pages/Chat";
 import Derm from "@/pages/Derm";
 import Progress from "@/pages/Progress";
+import Login from "@/pages/Login";
 import NotFound from "@/pages/not-found";
 
 class ErrorBoundary extends Component<{ children: React.ReactNode }, { error: string | null }> {
@@ -35,25 +36,33 @@ function ThemeProvider({ children }: { children: React.ReactNode }) {
   return <>{children}</>;
 }
 
+function AuthGate({ children }: { children: React.ReactNode }) {
+  const [unlocked, setUnlocked] = useState(false);
+  if (!unlocked) return <Login onUnlock={() => setUnlocked(true)} />;
+  return <>{children}</>;
+}
+
 export default function App() {
   return (
     <ErrorBoundary>
       <QueryClientProvider client={queryClient}>
         <ThemeProvider>
-          <Router hook={useHashLocation}>
-            <Layout>
-              <Switch>
-                <Route path="/" component={Today} />
-                <Route path="/log" component={LogDay} />
-                <Route path="/log/:date" component={LogDay} />
-                <Route path="/chat" component={Chat} />
-                <Route path="/derm" component={Derm} />
-              <Route path="/progress" component={Progress} />
-                <Route component={NotFound} />
-              </Switch>
-            </Layout>
-          </Router>
-          <Toaster />
+          <AuthGate>
+            <Router hook={useHashLocation}>
+              <Layout>
+                <Switch>
+                  <Route path="/" component={Today} />
+                  <Route path="/log" component={LogDay} />
+                  <Route path="/log/:date" component={LogDay} />
+                  <Route path="/chat" component={Chat} />
+                  <Route path="/derm" component={Derm} />
+                  <Route path="/progress" component={Progress} />
+                  <Route component={NotFound} />
+                </Switch>
+              </Layout>
+            </Router>
+            <Toaster />
+          </AuthGate>
         </ThemeProvider>
       </QueryClientProvider>
     </ErrorBoundary>
