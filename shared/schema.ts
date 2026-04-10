@@ -1,20 +1,20 @@
-import { sqliteTable, text, integer } from "drizzle-orm/sqlite-core";
+import { pgTable, text, integer, boolean, serial } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
 // ── Daily skin log ─────────────────────────────────────────────────────────
-export const dailyLogs = sqliteTable("daily_logs", {
-  id: integer("id").primaryKey({ autoIncrement: true }),
-  date: text("date").notNull().unique(), // ISO date YYYY-MM-DD
+export const dailyLogs = pgTable("daily_logs", {
+  id: serial("id").primaryKey(),
+  date: text("date").notNull().unique(),
 
   // Tretinoin
-  tretApplied: integer("tret_applied", { mode: "boolean" }).notNull().default(false),
-  tretMethod: text("tret_method").notNull().default("skipped"), // sandwich | direct | skipped
-  tretNight: integer("tret_night").notNull().default(0), // which tret night number in the cycle
+  tretApplied: boolean("tret_applied").notNull().default(false),
+  tretMethod: text("tret_method").notNull().default("skipped"),
+  tretNight: integer("tret_night").notNull().default(0),
 
   // Cyspera
-  cysperaApplied: integer("cyspera_applied", { mode: "boolean" }).notNull().default(false),
-  cysperaDuration: integer("cyspera_duration").notNull().default(0), // minutes
+  cysperaApplied: boolean("cyspera_applied").notNull().default(false),
+  cysperaDuration: integer("cyspera_duration").notNull().default(0),
 
   // Retinization symptoms (0=none 1=mild 2=moderate 3=severe)
   dryness: integer("dryness").notNull().default(0),
@@ -23,28 +23,28 @@ export const dailyLogs = sqliteTable("daily_logs", {
   purging: integer("purging").notNull().default(0),
 
   // Rosacea
-  rosaceaFlare: integer("rosacea_flare", { mode: "boolean" }).notNull().default(false),
-  rosaceaSeverity: integer("rosacea_severity").notNull().default(0), // 0-3
-  rosaceaZones: text("rosacea_zones").notNull().default("[]"), // JSON array of zone strings
+  rosaceaFlare: boolean("rosacea_flare").notNull().default(false),
+  rosaceaSeverity: integer("rosacea_severity").notNull().default(0),
+  rosaceaZones: text("rosacea_zones").notNull().default("[]"),
 
-  // Anterior malar bumps (derm tracking)
-  malarBumps: integer("malar_bumps").notNull().default(0), // 0/1/2/3+
+  // Anterior malar bumps
+  malarBumps: integer("malar_bumps").notNull().default(0),
 
   // Overall feel
-  tolerance: integer("tolerance").notNull().default(5), // 1-10
-  skinFeel: integer("skin_feel").notNull().default(3), // 1-5
+  tolerance: integer("tolerance").notNull().default(5),
+  skinFeel: integer("skin_feel").notNull().default(3),
 
-  // AM routine completed
-  amRoutineDone: integer("am_routine_done", { mode: "boolean" }).notNull().default(false),
+  // AM routine
+  amRoutineDone: boolean("am_routine_done").notNull().default(false),
 
   // Red light mask
-  redLightUsed: integer("red_light_used", { mode: "boolean" }).notNull().default(false),
-  redLightDuration: integer("red_light_duration").notNull().default(0), // minutes
+  redLightUsed: boolean("red_light_used").notNull().default(false),
+  redLightDuration: integer("red_light_duration").notNull().default(10),
 
   // Procedures / events
-  procedureTags: text("procedure_tags").notNull().default("[]"), // JSON array
+  procedureTags: text("procedure_tags").notNull().default("[]"),
 
-  // Free notes
+  // Notes
   notes: text("notes").default(""),
 });
 
@@ -53,12 +53,12 @@ export type InsertDailyLog = z.infer<typeof insertDailyLogSchema>;
 export type DailyLog = typeof dailyLogs.$inferSelect;
 
 // ── AI Chat messages ───────────────────────────────────────────────────────
-export const chatMessages = sqliteTable("chat_messages", {
-  id: integer("id").primaryKey({ autoIncrement: true }),
-  role: text("role").notNull(), // user | assistant
+export const chatMessages = pgTable("chat_messages", {
+  id: serial("id").primaryKey(),
+  role: text("role").notNull(),
   content: text("content").notNull(),
-  createdAt: text("created_at").notNull(), // ISO datetime
-  context: text("context").notNull().default("general"), // general | derm | log-analysis
+  createdAt: text("created_at").notNull(),
+  context: text("context").notNull().default("general"),
 });
 
 export const insertChatMessageSchema = createInsertSchema(chatMessages).omit({ id: true });
@@ -66,14 +66,14 @@ export type InsertChatMessage = z.infer<typeof insertChatMessageSchema>;
 export type ChatMessage = typeof chatMessages.$inferSelect;
 
 // ── Derm appointments ──────────────────────────────────────────────────────
-export const dermAppointments = sqliteTable("derm_appointments", {
-  id: integer("id").primaryKey({ autoIncrement: true }),
-  date: text("date").notNull(), // ISO date
-  type: text("type").notNull().default("checkup"), // checkup | vbeam | microneedling | botox | other
-  prepNotes: text("prep_notes").default(""), // questions to ask
-  visitNotes: text("visit_notes").default(""), // what happened
-  followUpActions: text("follow_up_actions").default(""), // next steps
-  status: text("status").notNull().default("upcoming"), // upcoming | completed
+export const dermAppointments = pgTable("derm_appointments", {
+  id: serial("id").primaryKey(),
+  date: text("date").notNull(),
+  type: text("type").notNull().default("checkup"),
+  prepNotes: text("prep_notes").default(""),
+  visitNotes: text("visit_notes").default(""),
+  followUpActions: text("follow_up_actions").default(""),
+  status: text("status").notNull().default("upcoming"),
 });
 
 export const insertDermAppointmentSchema = createInsertSchema(dermAppointments).omit({ id: true });

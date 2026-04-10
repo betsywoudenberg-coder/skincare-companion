@@ -1,117 +1,139 @@
-import { drizzle } from "drizzle-orm/better-sqlite3";
-import Database from "better-sqlite3";
+import { drizzle } from "drizzle-orm/node-postgres";
+import { Pool } from "pg";
 import { eq, asc, desc } from "drizzle-orm";
 import * as schema from "@shared/schema";
 import type { DailyLog, InsertDailyLog, ChatMessage, InsertChatMessage, DermAppointment, InsertDermAppointment } from "@shared/schema";
-import path from "path";
-import fs from "fs";
 
-const DB_DIR = process.env.NODE_ENV === "production" ? "/tmp" : path.resolve(".");
-fs.mkdirSync(DB_DIR, { recursive: true });
-const DB_PATH = path.join(DB_DIR, "skincare.db");
-const sqlite = new Database(DB_PATH);
-const db = drizzle(sqlite, { schema });
+if (!process.env.DATABASE_URL) {
+  throw new Error("DATABASE_URL environment variable is required");
+}
 
-sqlite.exec(`
-  CREATE TABLE IF NOT EXISTS daily_logs (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    date TEXT NOT NULL UNIQUE,
-    tret_applied INTEGER NOT NULL DEFAULT 0,
-    tret_method TEXT NOT NULL DEFAULT 'skipped',
-    tret_night INTEGER NOT NULL DEFAULT 0,
-    cyspera_applied INTEGER NOT NULL DEFAULT 0,
-    cyspera_duration INTEGER NOT NULL DEFAULT 0,
-    dryness INTEGER NOT NULL DEFAULT 0,
-    peeling INTEGER NOT NULL DEFAULT 0,
-    redness INTEGER NOT NULL DEFAULT 0,
-    purging INTEGER NOT NULL DEFAULT 0,
-    rosacea_flare INTEGER NOT NULL DEFAULT 0,
-    rosacea_severity INTEGER NOT NULL DEFAULT 0,
-    rosacea_zones TEXT NOT NULL DEFAULT '[]',
-    malar_bumps INTEGER NOT NULL DEFAULT 0,
-    tolerance INTEGER NOT NULL DEFAULT 5,
-    skin_feel INTEGER NOT NULL DEFAULT 3,
-    am_routine_done INTEGER NOT NULL DEFAULT 0,
-    red_light_used INTEGER NOT NULL DEFAULT 0,
-    red_light_duration INTEGER NOT NULL DEFAULT 0,
-    procedure_tags TEXT NOT NULL DEFAULT '[]',
-    notes TEXT DEFAULT ''
-  );
+const pool = new Pool({
+  connectionString: process.env.DATABASE_URL,
+  ssl: process.env.NODE_ENV === "production" ? { rejectUnauthorized: false } : false,
+});
 
-  CREATE TABLE IF NOT EXISTS chat_messages (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    role TEXT NOT NULL,
-    content TEXT NOT NULL,
-    created_at TEXT NOT NULL,
-    context TEXT NOT NULL DEFAULT 'general'
-  );
+const db = drizzle(pool, { schema });
 
-  CREATE TABLE IF NOT EXISTS derm_appointments (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    date TEXT NOT NULL,
-    type TEXT NOT NULL DEFAULT 'checkup',
-    prep_notes TEXT DEFAULT '',
-    visit_notes TEXT DEFAULT '',
-    follow_up_actions TEXT DEFAULT '',
-    status TEXT NOT NULL DEFAULT 'upcoming'
-  );
-`);
+// Create tables if they don't exist
+async function initDb() {
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS daily_logs (
+      id SERIAL PRIMARY KEY,
+      date TEXT NOT NULL UNIQUE,
+      tret_applied BOOLEAN NOT NULL DEFAULT false,
+      tret_method TEXT NOT NULL DEFAULT 'skipped',
+      tret_night INTEGER NOT NULL DEFAULT 0,
+      cyspera_applied BOOLEAN NOT NULL DEFAULT false,
+      cyspera_duration INTEGER NOT NULL DEFAULT 0,
+      dryness INTEGER NOT NULL DEFAULT 0,
+      peeling INTEGER NOT NULL DEFAULT 0,
+      redness INTEGER NOT NULL DEFAULT 0,
+      purging INTEGER NOT NULL DEFAULT 0,
+      rosacea_flare BOOLEAN NOT NULL DEFAULT false,
+      rosacea_severity INTEGER NOT NULL DEFAULT 0,
+      rosacea_zones TEXT NOT NULL DEFAULT '[]',
+      malar_bumps INTEGER NOT NULL DEFAULT 0,
+      tolerance INTEGER NOT NULL DEFAULT 5,
+      skin_feel INTEGER NOT NULL DEFAULT 3,
+      am_routine_done BOOLEAN NOT NULL DEFAULT false,
+      red_light_used BOOLEAN NOT NULL DEFAULT false,
+      red_light_duration INTEGER NOT NULL DEFAULT 10,
+      procedure_tags TEXT NOT NULL DEFAULT '[]',
+      notes TEXT DEFAULT ''
+    );
 
-// Idempotent migrations for existing databases
-const addCol = (table: string, col: string, def: string) => {
-  try { sqlite.exec(`ALTER TABLE ${table} ADD COLUMN ${col} ${def}`); } catch {}
-};
-addCol("daily_logs", "red_light_used", "INTEGER NOT NULL DEFAULT 0");
-addCol("daily_logs", "red_light_duration", "INTEGER NOT NULL DEFAULT 0");
+    CREATE TABLE IF NOT EXISTS chat_messages (
+      id SERIAL PRIMARY KEY,
+      role TEXT NOT NULL,
+      content TEXT NOT NULL,
+      created_at TEXT NOT NULL,
+      context TEXT NOT NULL DEFAULT 'general'
+    );
+
+    CREATE TABLE IF NOT EXISTS derm_appointments (
+      id SERIAL PRIMARY KEY,
+      date TEXT NOT NULL,
+      type TEXT NOT NULL DEFAULT 'checkup',
+      prep_notes TEXT DEFAULT '',
+      visit_notes TEXT DEFAULT '',
+      follow_up_actions TEXT DEFAULT '',
+      status TEXT NOT NULL DEFAULT 'upcoming'
+    );
+  `);
+}
+
+// Run init immediately — async but errors will surface on first request
+initDb().catch(console.error);
 
 export interface IStorage {
-  // Logs
-  getAllLogs(): DailyLog[];
-  getRecentLogs(n: number): DailyLog[];
-  getLogByDate(date: string): DailyLog | undefined;
-  upsertLog(data: InsertDailyLog): DailyLog;
-  // Chat
-  getMessages(context: string, limit?: number): ChatMessage[];
-  addMessage(data: InsertChatMessage): ChatMessage;
-  clearMessages(context: string): void;
-  // Derm
-  getAllAppointments(): DermAppointment[];
-  getAppointment(id: number): DermAppointment | undefined;
-  createAppointment(data: InsertDermAppointment): DermAppointment;
-  updateAppointment(id: number, data: Partial<InsertDermAppointment>): DermAppointment;
-  deleteAppointment(id: number): void;
+  getAllLogs(): Promise<DailyLog[]>;
+  getRecentLogs(n: number): Promise<DailyLog[]>;
+  getLogByDate(date: string): Promise<DailyLog | undefined>;
+  upsertLog(data: InsertDailyLog): Promise<DailyLog>;
+  getMessages(context: string, limit?: number): Promise<ChatMessage[]>;
+  addMessage(data: InsertChatMessage): Promise<ChatMessage>;
+  clearMessages(context: string): Promise<void>;
+  getAllAppointments(): Promise<DermAppointment[]>;
+  getAppointment(id: number): Promise<DermAppointment | undefined>;
+  createAppointment(data: InsertDermAppointment): Promise<DermAppointment>;
+  updateAppointment(id: number, data: Partial<InsertDermAppointment>): Promise<DermAppointment>;
+  deleteAppointment(id: number): Promise<void>;
 }
 
 export class Storage implements IStorage {
-  getAllLogs() { return db.select().from(schema.dailyLogs).orderBy(asc(schema.dailyLogs.date)).all(); }
-  getRecentLogs(n: number) { return db.select().from(schema.dailyLogs).orderBy(desc(schema.dailyLogs.date)).limit(n).all(); }
-  getLogByDate(date: string) { return db.select().from(schema.dailyLogs).where(eq(schema.dailyLogs.date, date)).get(); }
-  upsertLog(data: InsertDailyLog): DailyLog {
-    const existing = this.getLogByDate(data.date);
-    if (existing) return db.update(schema.dailyLogs).set(data).where(eq(schema.dailyLogs.date, data.date)).returning().get();
-    return db.insert(schema.dailyLogs).values(data).returning().get();
+  async getAllLogs() {
+    return db.select().from(schema.dailyLogs).orderBy(asc(schema.dailyLogs.date));
+  }
+  async getRecentLogs(n: number) {
+    return db.select().from(schema.dailyLogs).orderBy(desc(schema.dailyLogs.date)).limit(n);
+  }
+  async getLogByDate(date: string) {
+    const rows = await db.select().from(schema.dailyLogs).where(eq(schema.dailyLogs.date, date));
+    return rows[0];
+  }
+  async upsertLog(data: InsertDailyLog): Promise<DailyLog> {
+    const existing = await this.getLogByDate(data.date);
+    if (existing) {
+      const rows = await db.update(schema.dailyLogs).set(data).where(eq(schema.dailyLogs.date, data.date)).returning();
+      return rows[0];
+    }
+    const rows = await db.insert(schema.dailyLogs).values(data).returning();
+    return rows[0];
   }
 
-  getMessages(context: string, limit = 50) {
+  async getMessages(context: string, limit = 50) {
     return db.select().from(schema.chatMessages)
       .where(eq(schema.chatMessages.context, context))
       .orderBy(asc(schema.chatMessages.id))
-      .limit(limit).all();
+      .limit(limit);
   }
-  addMessage(data: InsertChatMessage): ChatMessage {
-    return db.insert(schema.chatMessages).values(data).returning().get();
+  async addMessage(data: InsertChatMessage): Promise<ChatMessage> {
+    const rows = await db.insert(schema.chatMessages).values(data).returning();
+    return rows[0];
   }
-  clearMessages(context: string) {
-    db.delete(schema.chatMessages).where(eq(schema.chatMessages.context, context)).run();
+  async clearMessages(context: string) {
+    await db.delete(schema.chatMessages).where(eq(schema.chatMessages.context, context));
   }
 
-  getAllAppointments() { return db.select().from(schema.dermAppointments).orderBy(asc(schema.dermAppointments.date)).all(); }
-  getAppointment(id: number) { return db.select().from(schema.dermAppointments).where(eq(schema.dermAppointments.id, id)).get(); }
-  createAppointment(data: InsertDermAppointment): DermAppointment { return db.insert(schema.dermAppointments).values(data).returning().get(); }
-  updateAppointment(id: number, data: Partial<InsertDermAppointment>): DermAppointment {
-    return db.update(schema.dermAppointments).set(data).where(eq(schema.dermAppointments.id, id)).returning().get();
+  async getAllAppointments() {
+    return db.select().from(schema.dermAppointments).orderBy(asc(schema.dermAppointments.date));
   }
-  deleteAppointment(id: number) { db.delete(schema.dermAppointments).where(eq(schema.dermAppointments.id, id)).run(); }
+  async getAppointment(id: number) {
+    const rows = await db.select().from(schema.dermAppointments).where(eq(schema.dermAppointments.id, id));
+    return rows[0];
+  }
+  async createAppointment(data: InsertDermAppointment): Promise<DermAppointment> {
+    const rows = await db.insert(schema.dermAppointments).values(data).returning();
+    return rows[0];
+  }
+  async updateAppointment(id: number, data: Partial<InsertDermAppointment>): Promise<DermAppointment> {
+    const rows = await db.update(schema.dermAppointments).set(data).where(eq(schema.dermAppointments.id, id)).returning();
+    return rows[0];
+  }
+  async deleteAppointment(id: number) {
+    await db.delete(schema.dermAppointments).where(eq(schema.dermAppointments.id, id));
+  }
 }
 
 export const storage = new Storage();
