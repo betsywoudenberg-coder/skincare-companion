@@ -60,7 +60,7 @@ export default function LogDay() {
   const [tretApplied, setTretApplied] = useState(false);
   const [tretMethod, setTretMethod] = useState<"sandwich"|"direct"|"skipped">("skipped");
   const [cysperaApplied, setCysperaApplied] = useState(false);
-  const [cysperaDuration, setCysperaDuration] = useState(10);
+  const [cysperaDuration, setCysperaDuration] = useState(15);
   const [dryness, setDryness] = useState(0);
   const [peeling, setPeeling] = useState(0);
   const [redness, setRedness] = useState(0);
@@ -82,7 +82,7 @@ export default function LogDay() {
     setTretApplied(existingLog.tretApplied);
     setTretMethod((existingLog.tretMethod as any) || "skipped");
     setCysperaApplied(existingLog.cysperaApplied);
-    setCysperaDuration(existingLog.cysperaDuration || 10);
+    setCysperaDuration(existingLog.cysperaDuration || 15);
     setDryness(existingLog.dryness); setPeeling(existingLog.peeling);
     setRedness(existingLog.redness); setPurging(existingLog.purging);
     setRosaceaFlare(existingLog.rosaceaFlare);
@@ -117,7 +117,9 @@ export default function LogDay() {
       queryClient.invalidateQueries({ queryKey: ["/api/logs"] });
       queryClient.invalidateQueries({ queryKey: ["/api/logs", dateParam] });
       toast({ title: "Saved", description: `Log for ${formatDate(dateParam)} saved.` });
-      navigate("/");
+      // Return to same date so back-filling past entries stays in place
+      if (isToday) navigate("/");
+      else navigate(`/log/${dateParam}`);
     },
     onError: () => toast({ title: "Error", description: "Could not save.", variant: "destructive" }),
   });
@@ -154,13 +156,17 @@ export default function LogDay() {
           <Switch checked={cysperaApplied} onCheckedChange={setCysperaApplied} data-testid="switch-cyspera" />
         </div>
         {cysperaApplied && (
-          <div>
-            <div className="flex items-center justify-between mb-1.5">
-              <p className="text-xs text-muted-foreground font-medium">Duration</p>
-              <span className="text-sm font-medium">{cysperaDuration} min</span>
-            </div>
-            <Slider value={[cysperaDuration]} onValueChange={([v]) => setCysperaDuration(v)} min={5} max={20} step={1} />
-            <div className="flex justify-between text-xs text-muted-foreground mt-1"><span>5 min</span><span>20 min</span></div>
+          <div className="flex items-center gap-3">
+            <p className="text-xs text-muted-foreground font-medium flex-1">Duration (minutes)</p>
+            <input
+              type="number"
+              min={1}
+              max={30}
+              value={cysperaDuration}
+              onChange={e => setCysperaDuration(Number(e.target.value) || 15)}
+              className="w-16 text-center text-sm font-medium rounded-lg border border-input bg-background px-2 py-1.5 focus:outline-none focus:ring-1 focus:ring-ring"
+              data-testid="input-cyspera-duration"
+            />
           </div>
         )}
       </CardContent></Card>
