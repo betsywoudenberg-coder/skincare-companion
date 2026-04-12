@@ -1,141 +1,108 @@
-import { useState, useRef, useEffect } from "react";
+import { useState } from "react";
 import { ZONE_ISSUES, zoneColor, type ZoneId, type FaceMapData, type IssueId } from "@shared/facemap";
 import { cn } from "@/lib/utils";
 import { X, Check } from "lucide-react";
 
-// ── SVG zone path data ─────────────────────────────────────────────────────
-// Face is drawn on a 200×260 viewBox, center at x=100
-// Zones are ellipses/paths. Left = patient's left = viewer's right (mirror image)
+// ── Zone definitions with clean non-overlapping paths ─────────────────────
+// ViewBox: 0 0 240 320 — face centered, generous spacing
+// Mirror image: left on map = patient's left cheek
 
-const ZONE_SHAPES: Record<ZoneId, { type: "ellipse" | "path"; props: Record<string, number | string> }> = {
-  // Forehead — split left/right of center
-  forehead_l:   { type: "ellipse", props: { cx: 72, cy: 52, rx: 28, ry: 18 } },
-  forehead_r:   { type: "ellipse", props: { cx: 128, cy: 52, rx: 28, ry: 18 } },
-  glabella:     { type: "ellipse", props: { cx: 100, cy: 78, rx: 14, ry: 11 } },
-  // Under-eye
-  undereye_l:   { type: "ellipse", props: { cx: 72, cy: 108, rx: 18, ry: 9 } },
-  undereye_r:   { type: "ellipse", props: { cx: 128, cy: 108, rx: 18, ry: 9 } },
-  // Anterior malar (front cheeks)
-  ant_malar_l:  { type: "ellipse", props: { cx: 64, cy: 132, rx: 20, ry: 16 } },
-  ant_malar_r:  { type: "ellipse", props: { cx: 136, cy: 132, rx: 20, ry: 16 } },
-  // Lateral malar (outer cheeks)
-  lat_malar_l:  { type: "ellipse", props: { cx: 44, cy: 130, rx: 16, ry: 20 } },
-  lat_malar_r:  { type: "ellipse", props: { cx: 156, cy: 130, rx: 16, ry: 20 } },
-  // Nose
-  nose:         { type: "ellipse", props: { cx: 100, cy: 126, rx: 12, ry: 16 } },
-  // Nasolabial
-  nasolabial_l: { type: "ellipse", props: { cx: 76, cy: 152, rx: 10, ry: 14 } },
-  nasolabial_r: { type: "ellipse", props: { cx: 124, cy: 152, rx: 10, ry: 14 } },
-  // Perioral
-  perioral_l:   { type: "ellipse", props: { cx: 78, cy: 176, rx: 14, ry: 11 } },
-  perioral_r:   { type: "ellipse", props: { cx: 122, cy: 176, rx: 14, ry: 11 } },
-  upper_lip:    { type: "ellipse", props: { cx: 100, cy: 170, rx: 12, ry: 9 } },
-  // Chin / marionette
-  chin_l:       { type: "ellipse", props: { cx: 80, cy: 198, rx: 14, ry: 12 } },
-  chin_r:       { type: "ellipse", props: { cx: 120, cy: 198, rx: 14, ry: 12 } },
-};
+interface ZoneDef {
+  id: ZoneId;
+  label: string;
+  // ellipse params
+  cx: number; cy: number; rx: number; ry: number;
+}
 
-// Zone label positions (for small text labels)
-const ZONE_LABELS: Record<ZoneId, { x: number; y: number; size?: number }> = {
-  forehead_l:   { x: 72,  y: 52  },
-  forehead_r:   { x: 128, y: 52  },
-  glabella:     { x: 100, y: 78  },
-  undereye_l:   { x: 72,  y: 108 },
-  undereye_r:   { x: 128, y: 108 },
-  ant_malar_l:  { x: 64,  y: 132 },
-  ant_malar_r:  { x: 136, y: 132 },
-  lat_malar_l:  { x: 44,  y: 130 },
-  lat_malar_r:  { x: 156, y: 130 },
-  nose:         { x: 100, y: 126 },
-  nasolabial_l: { x: 76,  y: 152 },
-  nasolabial_r: { x: 124, y: 152 },
-  perioral_l:   { x: 78,  y: 176 },
-  perioral_r:   { x: 122, y: 176 },
-  upper_lip:    { x: 100, y: 170 },
-  chin_l:       { x: 80,  y: 198 },
-  chin_r:       { x: 120, y: 198 },
-};
+const ZONES: ZoneDef[] = [
+  // ── Forehead ──
+  { id: "forehead_l",   label: "Forehead L",      cx: 82,  cy: 60,  rx: 28, ry: 20 },
+  { id: "forehead_r",   label: "Forehead R",      cx: 158, cy: 60,  rx: 28, ry: 20 },
+  { id: "glabella",     label: "Glabella",        cx: 120, cy: 86,  rx: 16, ry: 13 },
+  // ── Under-eye ──
+  { id: "undereye_l",   label: "Under-eye L",     cx: 82,  cy: 126, rx: 20, ry: 10 },
+  { id: "undereye_r",   label: "Under-eye R",     cx: 158, cy: 126, rx: 20, ry: 10 },
+  // ── Cheeks ──
+  { id: "ant_malar_l",  label: "Ant. Malar L",    cx: 74,  cy: 158, rx: 24, ry: 18 },
+  { id: "ant_malar_r",  label: "Ant. Malar R",    cx: 166, cy: 158, rx: 24, ry: 18 },
+  { id: "lat_malar_l",  label: "Lat. Malar L",    cx: 46,  cy: 152, rx: 18, ry: 22 },
+  { id: "lat_malar_r",  label: "Lat. Malar R",    cx: 194, cy: 152, rx: 18, ry: 22 },
+  // ── Nose ──
+  { id: "nose",         label: "Nose",            cx: 120, cy: 152, rx: 14, ry: 20 },
+  // ── Nasolabial ──
+  { id: "nasolabial_l", label: "Nasolabial L",    cx: 88,  cy: 182, rx: 12, ry: 14 },
+  { id: "nasolabial_r", label: "Nasolabial R",    cx: 152, cy: 182, rx: 12, ry: 14 },
+  // ── Perioral ──
+  { id: "perioral_l",   label: "Perioral L",      cx: 96,  cy: 208, rx: 16, ry: 12 },
+  { id: "perioral_r",   label: "Perioral R",      cx: 144, cy: 208, rx: 16, ry: 12 },
+  { id: "upper_lip",    label: "Upper Lip",       cx: 120, cy: 202, rx: 14, ry: 10 },
+  // ── Chin / marionette ──
+  { id: "chin_l",       label: "Chin L",          cx: 96,  cy: 238, rx: 18, ry: 14 },
+  { id: "chin_r",       label: "Chin R",          cx: 144, cy: 238, rx: 18, ry: 14 },
+];
 
-const ZONE_SHORT: Record<ZoneId, string> = {
-  forehead_l:   "F.L", forehead_r:   "F.R",
-  glabella:     "Glab", undereye_l:   "UE.L", undereye_r:   "UE.R",
-  ant_malar_l:  "AM.L", ant_malar_r:  "AM.R",
-  lat_malar_l:  "LM.L", lat_malar_r:  "LM.R",
-  nose:         "Nose",
-  nasolabial_l: "NL.L", nasolabial_r: "NL.R",
-  perioral_l:   "PO.L", perioral_r:   "PO.R",
-  upper_lip:    "Lip",  chin_l:       "Ch.L", chin_r:       "Ch.R",
+// Short labels for inside zones
+const SHORT: Record<ZoneId, string> = {
+  forehead_l: "Fore L",   forehead_r: "Fore R",
+  glabella: "Glabella",
+  undereye_l: "UE L",     undereye_r: "UE R",
+  ant_malar_l: "Ant\nMal L", ant_malar_r: "Ant\nMal R",
+  lat_malar_l: "Lat\nMal L", lat_malar_r: "Lat\nMal R",
+  nose: "Nose",
+  nasolabial_l: "NL L",   nasolabial_r: "NL R",
+  perioral_l: "Peri L",   perioral_r: "Peri R",
+  upper_lip: "Lip",
+  chin_l: "Chin L",       chin_r: "Chin R",
 };
 
 // ── Zone popover ───────────────────────────────────────────────────────────
 function ZonePopover({
-  zoneId, annotation, onSave, onClose,
+  zone, annotation, onSave, onClose,
 }: {
-  zoneId: ZoneId;
+  zone: ZoneDef;
   annotation: { issues: IssueId[]; note?: string };
   onSave: (a: { issues: IssueId[]; note: string }) => void;
   onClose: () => void;
 }) {
   const [issues, setIssues] = useState<IssueId[]>(annotation.issues);
   const [note, setNote] = useState(annotation.note || "");
-
   const toggle = (id: IssueId) =>
-    setIssues(prev => prev.includes(id) ? prev.filter(i => i !== id) : [...prev, id]);
-
-  const zoneName = Object.values(ZONE_SHAPES) // find label from FACE_ZONES
-    ? zoneId.replace(/_/g, " ").replace(/\b\w/g, c => c.toUpperCase())
-    : zoneId;
+    setIssues(p => p.includes(id) ? p.filter(i => i !== id) : [...p, id]);
 
   return (
-    <div className="absolute inset-0 z-50 flex items-center justify-center bg-background/80 backdrop-blur-sm rounded-xl">
-      <div className="bg-card border border-border rounded-2xl shadow-xl p-4 w-[220px] max-w-[90vw]">
+    <div className="absolute inset-0 z-50 flex items-center justify-center bg-background/85 backdrop-blur-sm rounded-2xl">
+      <div className="bg-card border border-border rounded-2xl shadow-xl p-4 w-[230px]">
         <div className="flex items-center justify-between mb-3">
-          <p className="font-semibold text-sm capitalize">{zoneName.replace(/_/g, " ")}</p>
-          <button onClick={onClose} className="text-muted-foreground hover:text-foreground">
-            <X size={16} />
+          <p className="font-semibold text-sm">{zone.label}</p>
+          <button onClick={onClose} className="text-muted-foreground hover:text-foreground p-1">
+            <X size={15} />
           </button>
         </div>
-
-        {/* Issue pills */}
         <div className="flex flex-wrap gap-1.5 mb-3">
           {ZONE_ISSUES.map(issue => (
-            <button
-              key={issue.id}
-              onClick={() => toggle(issue.id as IssueId)}
+            <button key={issue.id} onClick={() => toggle(issue.id as IssueId)}
               className={cn(
                 "px-2.5 py-1 rounded-full text-xs font-medium border transition-all",
                 issues.includes(issue.id as IssueId)
                   ? "text-white border-transparent"
-                  : "border-border text-muted-foreground hover:border-foreground/20 bg-card"
+                  : "border-border text-muted-foreground hover:border-foreground/20 bg-background"
               )}
-              style={issues.includes(issue.id as IssueId) ? { backgroundColor: issue.color } : {}}
-            >
+              style={issues.includes(issue.id as IssueId) ? { backgroundColor: issue.color } : {}}>
               {issue.emoji} {issue.label}
             </button>
           ))}
         </div>
-
-        {/* Note */}
-        <input
-          type="text"
-          value={note}
-          onChange={e => setNote(e.target.value)}
+        <input type="text" value={note} onChange={e => setNote(e.target.value)}
           placeholder="Note (optional)"
-          className="w-full text-xs rounded-lg border border-input bg-background px-2.5 py-1.5 focus:outline-none focus:ring-1 focus:ring-ring mb-3"
-        />
-
+          className="w-full text-xs rounded-lg border border-input bg-background px-2.5 py-1.5 focus:outline-none focus:ring-1 focus:ring-ring mb-3" />
         <div className="flex gap-2">
-          <button
-            onClick={() => onSave({ issues, note })}
-            className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg bg-primary text-primary-foreground text-xs font-medium"
-          >
+          <button onClick={() => onSave({ issues, note })}
+            className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg bg-primary text-primary-foreground text-xs font-semibold">
             <Check size={13} /> Save
           </button>
-          {issues.length > 0 && (
-            <button
-              onClick={() => onSave({ issues: [], note: "" })}
-              className="px-3 py-2 rounded-lg border border-border text-xs text-muted-foreground hover:text-destructive"
-            >
+          {(issues.length > 0 || note) && (
+            <button onClick={() => onSave({ issues: [], note: "" })}
+              className="px-3 py-2 rounded-lg border border-border text-xs text-muted-foreground hover:text-destructive">
               Clear
             </button>
           )}
@@ -154,125 +121,162 @@ interface FaceMapProps {
 }
 
 export default function FaceMap({ value, onChange, readOnly = false, compact = false }: FaceMapProps) {
-  const [activeZone, setActiveZone] = useState<ZoneId | null>(null);
-
-  const handleZoneClick = (zoneId: ZoneId) => {
-    if (readOnly) return;
-    setActiveZone(zoneId);
-  };
+  const [activeZoneId, setActiveZoneId] = useState<ZoneId | null>(null);
+  const activeZone = ZONES.find(z => z.id === activeZoneId) || null;
 
   const handleSave = (zoneId: ZoneId, annotation: { issues: IssueId[]; note: string }) => {
     const next = { ...value };
-    if (annotation.issues.length === 0) {
-      delete next[zoneId];
-    } else {
-      next[zoneId] = annotation;
-    }
+    if (annotation.issues.length === 0 && !annotation.note) delete next[zoneId];
+    else next[zoneId] = annotation;
     onChange(next);
-    setActiveZone(null);
+    setActiveZoneId(null);
   };
 
-  const size = compact ? 160 : 220;
-  const scale = size / 200;
+  // Compact mode: 140px wide
+  const W = compact ? 140 : 260;
+  const H = compact ? 188 : 372;
 
   return (
-    <div className="relative" style={{ width: size, height: Math.round(size * 1.3) }}>
-      <svg
-        viewBox="0 0 200 260"
-        width={size}
-        height={Math.round(size * 1.3)}
-        className="overflow-visible"
-      >
-        {/* Face outline */}
-        <ellipse cx="100" cy="130" rx="78" ry="108"
-          fill="hsl(var(--muted))" stroke="hsl(var(--border))" strokeWidth="1.5" />
+    <div className="relative select-none" style={{ width: W, height: H }}>
+      <svg viewBox="0 0 240 340" width={W} height={H} className="overflow-visible">
 
-        {/* Hair area */}
-        <ellipse cx="100" cy="28" rx="78" ry="32"
-          fill="hsl(var(--muted))" stroke="none" />
+        {/* ── Face silhouette ── */}
+        {/* Main face shape — wider mid-face, narrower forehead and chin */}
+        <path
+          d="M120,18 C88,18 58,34 46,62 C34,90 36,118 38,138
+             C40,158 36,168 36,178 C36,200 44,224 58,244
+             C72,264 90,276 120,278
+             C150,276 168,264 182,244
+             C196,224 204,200 204,178
+             C204,168 200,158 202,138
+             C204,118 206,90 194,62
+             C182,34 152,18 120,18 Z"
+          fill="hsl(var(--accent) / 0.12)"
+          stroke="hsl(var(--border))"
+          strokeWidth="1.5"
+        />
+
+        {/* ── Facial features (non-interactive) ── */}
+
+        {/* Eyebrows */}
+        <path d="M62 100 Q74 94 86 98" fill="none" stroke="hsl(var(--foreground))" strokeWidth="2" strokeLinecap="round" opacity="0.35"/>
+        <path d="M154 98 Q166 94 178 100" fill="none" stroke="hsl(var(--foreground))" strokeWidth="2" strokeLinecap="round" opacity="0.35"/>
 
         {/* Eyes */}
-        <ellipse cx="72" cy="95" rx="14" ry="8" fill="hsl(var(--background))" stroke="hsl(var(--border))" strokeWidth="1" />
-        <ellipse cx="128" cy="95" rx="14" ry="8" fill="hsl(var(--background))" stroke="hsl(var(--border))" strokeWidth="1" />
-        <circle cx="72" cy="95" r="4" fill="hsl(var(--foreground))" opacity="0.4" />
-        <circle cx="128" cy="95" r="4" fill="hsl(var(--foreground))" opacity="0.4" />
+        <ellipse cx="78" cy="112" rx="16" ry="9"
+          fill="hsl(var(--background))" stroke="hsl(var(--foreground))" strokeWidth="1.2" opacity="0.5"/>
+        <ellipse cx="162" cy="112" rx="16" ry="9"
+          fill="hsl(var(--background))" stroke="hsl(var(--foreground))" strokeWidth="1.2" opacity="0.5"/>
+        <circle cx="78"  cy="112" r="4.5" fill="hsl(var(--foreground))" opacity="0.3"/>
+        <circle cx="162" cy="112" r="4.5" fill="hsl(var(--foreground))" opacity="0.3"/>
 
-        {/* Nose bridge line */}
-        <line x1="96" y1="105" x2="94" y2="138" stroke="hsl(var(--border))" strokeWidth="1" strokeLinecap="round" />
-        <line x1="104" y1="105" x2="106" y2="138" stroke="hsl(var(--border))" strokeWidth="1" strokeLinecap="round" />
+        {/* Nose */}
+        <path d="M114,128 L110,162 Q120,170 130,162 L126,128"
+          fill="none" stroke="hsl(var(--foreground))" strokeWidth="1.2" strokeLinecap="round" opacity="0.3"/>
+        <path d="M106,162 Q110,168 120,168 Q130,168 134,162"
+          fill="none" stroke="hsl(var(--foreground))" strokeWidth="1.2" strokeLinecap="round" opacity="0.3"/>
 
         {/* Lips */}
-        <path d="M88 163 Q100 170 112 163" fill="none" stroke="hsl(var(--border))" strokeWidth="1.5" strokeLinecap="round" />
-        <path d="M88 163 Q100 157 112 163" fill="hsl(var(--border))" opacity="0.2" />
+        <path d="M100,208 Q110,202 120,205 Q130,202 140,208"
+          fill="none" stroke="hsl(var(--foreground))" strokeWidth="1.5" strokeLinecap="round" opacity="0.4"/>
+        <path d="M100,208 Q110,216 120,214 Q130,216 140,208"
+          fill="hsl(var(--foreground))" fillOpacity="0.08"
+          stroke="hsl(var(--foreground))" strokeWidth="1.2" strokeLinecap="round" opacity="0.35"/>
 
-        {/* Chin line */}
-        <path d="M76 210 Q100 228 124 210" fill="none" stroke="hsl(var(--border))" strokeWidth="1" strokeLinecap="round" />
+        {/* Chin crease */}
+        <path d="M100,258 Q120,268 140,258"
+          fill="none" stroke="hsl(var(--foreground))" strokeWidth="1" strokeLinecap="round" opacity="0.2"/>
 
-        {/* Tappable zone ellipses */}
-        {(Object.entries(ZONE_SHAPES) as [ZoneId, typeof ZONE_SHAPES[ZoneId]][]).map(([id, shape]) => {
-          const annotation = value[id];
-          const color = zoneColor(annotation);
-          const hasIssue = !!color;
-          const isActive = activeZone === id;
+        {/* ── Tappable zones ── */}
+        {ZONES.map(zone => {
+          const ann = value[zone.id];
+          const color = zoneColor(ann);
+          const hasIssue = !!color && (ann?.issues?.length ?? 0) > 0;
+          const isActive = activeZoneId === zone.id;
 
           return (
-            <g key={id} onClick={() => handleZoneClick(id)} style={{ cursor: readOnly ? "default" : "pointer" }}>
+            <g key={zone.id}
+              onClick={() => !readOnly && setActiveZoneId(zone.id)}
+              style={{ cursor: readOnly ? "default" : "pointer" }}>
+              {/* Zone fill */}
               <ellipse
-                cx={shape.props.cx as number}
-                cy={shape.props.cy as number}
-                rx={shape.props.rx as number}
-                ry={shape.props.ry as number}
-                fill={hasIssue ? color + "55" : "transparent"}
-                stroke={isActive ? "hsl(var(--primary))" : hasIssue ? color : "hsl(var(--border))"}
-                strokeWidth={isActive ? 2 : hasIssue ? 1.5 : 0.75}
+                cx={zone.cx} cy={zone.cy} rx={zone.rx} ry={zone.ry}
+                fill={hasIssue ? color + "40" : isActive ? "hsl(var(--primary) / 0.08)" : "transparent"}
+                stroke={
+                  isActive ? "hsl(var(--primary))" :
+                  hasIssue ? color :
+                  "hsl(var(--foreground) / 0.18)"
+                }
+                strokeWidth={isActive ? 2 : hasIssue ? 2 : 1}
                 strokeDasharray={!hasIssue && !isActive ? "3 2" : undefined}
-                className={readOnly ? "" : "hover:stroke-primary hover:fill-primary/10 transition-all"}
-                opacity={readOnly && !hasIssue ? 0.3 : 1}
+                className={!readOnly ? "transition-all" : ""}
               />
-              {/* Issue dot indicators */}
-              {annotation?.issues && annotation.issues.length > 0 && (
-                <circle
-                  cx={shape.props.cx as number}
-                  cy={shape.props.cy as number}
-                  r={4}
-                  fill={color || "#999"}
+              {/* Hover ring (non-compact only) */}
+              {!compact && !readOnly && (
+                <ellipse
+                  cx={zone.cx} cy={zone.cy} rx={zone.rx + 1} ry={zone.ry + 1}
+                  fill="none"
+                  stroke="hsl(var(--primary))"
+                  strokeWidth="1.5"
+                  opacity="0"
+                  className="hover:opacity-40 transition-opacity"
                 />
               )}
-              {/* Zone label — only show on non-compact */}
-              {!compact && !hasIssue && (
-                <text
-                  x={ZONE_LABELS[id].x}
-                  y={ZONE_LABELS[id].y + 1}
-                  textAnchor="middle"
-                  dominantBaseline="middle"
-                  fontSize="5"
-                  fill="hsl(var(--muted-foreground))"
-                  opacity="0.6"
-                  style={{ pointerEvents: "none", userSelect: "none" }}
-                >
-                  {ZONE_SHORT[id]}
-                </text>
+              {/* Issue dot */}
+              {hasIssue && (
+                <circle cx={zone.cx} cy={zone.cy} r={compact ? 4 : 5}
+                  fill={color!} stroke="hsl(var(--background))" strokeWidth="1.5"/>
+              )}
+              {/* Zone label — full mode only */}
+              {!compact && (
+                <>
+                  {SHORT[zone.id].includes("\n") ? (
+                    <>
+                      <text x={zone.cx} y={zone.cy - 3} textAnchor="middle" dominantBaseline="middle"
+                        fontSize="6.5" fill={hasIssue ? color! : "hsl(var(--muted-foreground))"}
+                        fontWeight={hasIssue ? "600" : "400"}
+                        style={{ pointerEvents: "none", userSelect: "none" }}>
+                        {SHORT[zone.id].split("\n")[0]}
+                      </text>
+                      <text x={zone.cx} y={zone.cy + 6} textAnchor="middle" dominantBaseline="middle"
+                        fontSize="6.5" fill={hasIssue ? color! : "hsl(var(--muted-foreground))"}
+                        fontWeight={hasIssue ? "600" : "400"}
+                        style={{ pointerEvents: "none", userSelect: "none" }}>
+                        {SHORT[zone.id].split("\n")[1]}
+                      </text>
+                    </>
+                  ) : (
+                    <text x={zone.cx} y={zone.cy} textAnchor="middle" dominantBaseline="middle"
+                      fontSize="6.5" fill={hasIssue ? color! : "hsl(var(--muted-foreground))"}
+                      fontWeight={hasIssue ? "600" : "400"}
+                      style={{ pointerEvents: "none", userSelect: "none" }}>
+                      {SHORT[zone.id]}
+                    </text>
+                  )}
+                </>
               )}
             </g>
           );
         })}
 
-        {/* Mirror label */}
+        {/* Mirror labels */}
         {!compact && (
           <>
-            <text x="30" y="250" textAnchor="middle" fontSize="7" fill="hsl(var(--muted-foreground))" opacity="0.5">Your L</text>
-            <text x="170" y="250" textAnchor="middle" fontSize="7" fill="hsl(var(--muted-foreground))" opacity="0.5">Your R</text>
+            <text x="28" y="330" textAnchor="middle" fontSize="8"
+              fill="hsl(var(--muted-foreground))" opacity="0.6">← Your L</text>
+            <text x="212" y="330" textAnchor="middle" fontSize="8"
+              fill="hsl(var(--muted-foreground))" opacity="0.6">Your R →</text>
           </>
         )}
       </svg>
 
-      {/* Zone popover */}
-      {activeZone && (
+      {/* Zone popover overlay */}
+      {activeZone && !readOnly && (
         <ZonePopover
-          zoneId={activeZone}
-          annotation={value[activeZone] || { issues: [] }}
-          onSave={(a) => handleSave(activeZone, a)}
-          onClose={() => setActiveZone(null)}
+          zone={activeZone}
+          annotation={value[activeZone.id] || { issues: [] }}
+          onSave={(a) => handleSave(activeZone.id, a)}
+          onClose={() => setActiveZoneId(null)}
         />
       )}
     </div>
