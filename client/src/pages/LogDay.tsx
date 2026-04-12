@@ -92,10 +92,10 @@ export default function LogDay() {
         peeling: Object.values(faceMap).some(z => z?.issues.includes("peeling")) ? 1 : 0,
         redness: Object.values(faceMap).some(z => z?.issues.includes("redness")) ? 1 : 0,
         purging: Object.values(faceMap).some(z => z?.issues.includes("purging") || z?.issues.includes("blemish")) ? 1 : 0,
-        rosaceaFlare: ["perioral_l","perioral_r","upper_lip"].some(z => (faceMap as any)[z]?.issues?.length > 0),
-        rosaceaSeverity: 0,
+        rosaceaFlare: !!faceMap["perioral"]?.issues?.length,
+        rosaceaSeverity: faceMap["perioral"]?.issues?.length ? 1 : 0,
         rosaceaZones: "[]",
-        malarBumps: ["ant_malar_l","ant_malar_r"].filter(z => (faceMap as any)[z]?.issues?.length > 0).length,
+        malarBumps: ["cheek_l","cheek_r"].filter(z => (faceMap as any)[z]?.issues?.length > 0).length,
         tolerance: 5,
       });
       return r.json();

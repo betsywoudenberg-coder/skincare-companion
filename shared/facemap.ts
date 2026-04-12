@@ -1,27 +1,11 @@
 // Face map data types — shared between frontend and backend
 
 export const FACE_ZONES = [
-  // Upper face
-  { id: "forehead_l",    label: "Forehead L",        side: "left"   },
-  { id: "forehead_r",    label: "Forehead R",        side: "right"  },
-  { id: "glabella",      label: "Glabella",          side: "center" },
-  // Eye area
-  { id: "undereye_l",    label: "Under-eye L",       side: "left"   },
-  { id: "undereye_r",    label: "Under-eye R",       side: "right"  },
-  // Mid face
-  { id: "ant_malar_l",   label: "Ant. Malar L",      side: "left"   },
-  { id: "ant_malar_r",   label: "Ant. Malar R",      side: "right"  },
-  { id: "lat_malar_l",   label: "Lat. Malar L",      side: "left"   },
-  { id: "lat_malar_r",   label: "Lat. Malar R",      side: "right"  },
-  { id: "nose",          label: "Nose",              side: "center" },
-  { id: "nasolabial_l",  label: "Nasolabial L",      side: "left"   },
-  { id: "nasolabial_r",  label: "Nasolabial R",      side: "right"  },
-  // Lower face
-  { id: "perioral_l",    label: "Perioral L",        side: "left"   },
-  { id: "perioral_r",    label: "Perioral R",        side: "right"  },
-  { id: "upper_lip",     label: "Upper Lip",         side: "center" },
-  { id: "chin_l",        label: "Chin/Marionette L", side: "left"   },
-  { id: "chin_r",        label: "Chin/Marionette R", side: "right"  },
+  { id: "forehead",   label: "Forehead",    side: "center" },
+  { id: "nose",       label: "Nose",        side: "center" },
+  { id: "cheek_l",    label: "Left Cheek",  side: "left"   },
+  { id: "cheek_r",    label: "Right Cheek", side: "right"  },
+  { id: "perioral",   label: "Peri-oral",   side: "center" },
 ] as const;
 
 export type ZoneId = typeof FACE_ZONES[number]["id"];
