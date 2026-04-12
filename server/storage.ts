@@ -21,6 +21,8 @@ const db = drizzle(pool, { schema });
 // Create tables if they don't exist
 async function initDb() {
   await pool.query(`
+    ALTER TABLE daily_logs ADD COLUMN IF NOT EXISTS face_map TEXT NOT NULL DEFAULT '{}';
+
     CREATE TABLE IF NOT EXISTS daily_logs (
       id SERIAL PRIMARY KEY,
       date TEXT NOT NULL UNIQUE,
@@ -40,6 +42,7 @@ async function initDb() {
       tolerance INTEGER NOT NULL DEFAULT 5,
       skin_feel INTEGER NOT NULL DEFAULT 3,
       am_routine_done BOOLEAN NOT NULL DEFAULT false,
+      face_map TEXT NOT NULL DEFAULT '{}',
       red_light_used BOOLEAN NOT NULL DEFAULT false,
       red_light_duration INTEGER NOT NULL DEFAULT 10,
       procedure_tags TEXT NOT NULL DEFAULT '[]',

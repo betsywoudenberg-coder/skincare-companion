@@ -16,23 +16,22 @@ export const dailyLogs = pgTable("daily_logs", {
   cysperaApplied: boolean("cyspera_applied").notNull().default(false),
   cysperaDuration: integer("cyspera_duration").notNull().default(0),
 
-  // Retinization symptoms (0=none 1=mild 2=moderate 3=severe)
+  // Face map — JSON storing per-zone annotations {issues[], note?}
+  faceMap: text("face_map").notNull().default("{}"),
+
+  // Overall feel
+  skinFeel: integer("skin_feel").notNull().default(3),
+
+  // Legacy fields kept for historical data / charts (not shown in UI)
   dryness: integer("dryness").notNull().default(0),
   peeling: integer("peeling").notNull().default(0),
   redness: integer("redness").notNull().default(0),
   purging: integer("purging").notNull().default(0),
-
-  // Rosacea
   rosaceaFlare: boolean("rosacea_flare").notNull().default(false),
   rosaceaSeverity: integer("rosacea_severity").notNull().default(0),
   rosaceaZones: text("rosacea_zones").notNull().default("[]"),
-
-  // Anterior malar bumps
   malarBumps: integer("malar_bumps").notNull().default(0),
-
-  // Overall feel
   tolerance: integer("tolerance").notNull().default(5),
-  skinFeel: integer("skin_feel").notNull().default(3),
 
   // AM routine
   amRoutineDone: boolean("am_routine_done").notNull().default(false),
