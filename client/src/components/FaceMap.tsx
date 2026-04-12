@@ -23,10 +23,10 @@ const ZONES: ZoneDef[] = [
   { id: "undereye_l",   label: "Under-eye L",     cx: 82,  cy: 126, rx: 20, ry: 10 },
   { id: "undereye_r",   label: "Under-eye R",     cx: 158, cy: 126, rx: 20, ry: 10 },
   // ── Cheeks ──
-  { id: "ant_malar_l",  label: "Ant. Malar L",    cx: 74,  cy: 158, rx: 24, ry: 18 },
-  { id: "ant_malar_r",  label: "Ant. Malar R",    cx: 166, cy: 158, rx: 24, ry: 18 },
-  { id: "lat_malar_l",  label: "Lat. Malar L",    cx: 46,  cy: 152, rx: 18, ry: 22 },
-  { id: "lat_malar_r",  label: "Lat. Malar R",    cx: 194, cy: 152, rx: 18, ry: 22 },
+  { id: "ant_malar_l",  label: "Ant. Malar L",    cx: 80,  cy: 155, rx: 22, ry: 17 },
+  { id: "ant_malar_r",  label: "Ant. Malar R",    cx: 160, cy: 155, rx: 22, ry: 17 },
+  { id: "lat_malar_l",  label: "Lat. Malar L",    cx: 52,  cy: 168, rx: 18, ry: 20 },
+  { id: "lat_malar_r",  label: "Lat. Malar R",    cx: 188, cy: 168, rx: 18, ry: 20 },
   // ── Nose ──
   { id: "nose",         label: "Nose",            cx: 120, cy: 152, rx: 14, ry: 20 },
   // ── Nasolabial ──
